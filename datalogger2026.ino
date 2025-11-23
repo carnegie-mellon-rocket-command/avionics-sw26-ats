@@ -50,7 +50,7 @@ using namespace BLA;
 #define ROCKET_DRAG_COEFFICIENT 0.46f   // Average value from OpenRocket
 #define ROCKET_CROSS_SECTIONAL_AREA 0.0490873852f // The surface area (ft^2) of the rocket facing upwards
 #if SUBSCALE
-    #define ROCKET_MASS 13.35f // lbs in dry mass (with engine housing but NOT propellant, assuming no ballast)
+    #define ROCKET_MASS 11.28125f // lbs in dry mass (with engine housing but NOT propellant, assuming no ballast)
 #else
     #define ROCKET_MASS 16.5f // lbs in dry mass (with engine housing but NOT propellant, assuming no ballast)
 #endif
