@@ -1,9 +1,8 @@
 /*
 Carnegie Schmellon Rocketry Club: Precision INstrumented Experimental Aerial Propulsion Payload 
-                                  for Low-altitude Exploration ("PINEAPPLE") data logger             
-(see what I did there lol)
+                                  for Low-altitude Exploration ("PINEAPPLE") data logger            
 
-Made by the 2025 Avionics team :D
+Made by the 2026 Avionics team :D (adapting on code from the 2025 Avionics team)
 */
 
 // ***************** LIBRARIES *****************
@@ -43,22 +42,21 @@ Made by the 2025 Avionics team :D
 using namespace BLA;
 
 // ***************** UNITS (in IPS) *****************
-#define SEA_LEVEL_PRESSURE_HPA 1012.5f
+#define SEA_LEVEL_PRESSURE_HPA 1018.0f
 #define METERS_TO_FEET 3.28084f
 #define ATMOSPHERE_FLUID_DENSITY 0.076474f // lbs/ft^3
 #define GRAVITY 32.174f // ft/s^2
 // ***************** Constants *****************
 #define ROCKET_DRAG_COEFFICIENT 0.46f   // Average value from OpenRocket
-#define ROCKET_CROSS_SECTIONAL_AREA 0.08814130888f // The surface area (ft^2) of the rocket facing upwards
+#define ROCKET_CROSS_SECTIONAL_AREA 0.0490873852f // The surface area (ft^2) of the rocket facing upwards
 #if SUBSCALE
     #define ROCKET_MASS 13.35f // lbs in dry mass (with engine housing but NOT propellant, assuming no ballast)
 #else
     #define ROCKET_MASS 16.5f // lbs in dry mass (with engine housing but NOT propellant, assuming no ballast)
 #endif
-#define MAX_FLAP_SURFACE_AREA 0.02930555555f
+#define MAX_FLAP_SURFACE_AREA 0.0479010049f
 // #define ROCKET_MASS 19.5625f // lbs in dry mass (with engine housing but NOT propellant)
-#define ATS_MAX_SURFACE_AREA 0.02930555555 + ROCKET_CROSS_SECTIONAL_AREA // The maximum surface area (ft^2) of the rocket with flaps extended, including rocket's area
-#define TARGET_ACCELERATION 43.42135f
+#define ATS_MAX_SURFACE_AREA MAX_FLAP_SURFACE_AREA + ROCKET_CROSS_SECTIONAL_AREA // The maximum surface area (ft^2) of the rocket with flaps extended, including rocket's area
 // Kalman filter parameters
 #define NumStates 3
 #define NumObservations 2
@@ -103,9 +101,9 @@ const int LED_PIN = LED_BUILTIN;
 // ATS SERVO PARAMETERS
 Servo m_atsServo;
 float gAtsPosition = 0.0f;
-const int ATS_MIN = 0;
+const int ATS_MIN = 180;
 
-const int ATS_MAX = 254/270*180; // 254 constraint from flaps / 270 (servo max) * 180 (library function mapping)
+const int ATS_MAX = 13; // 254 constraint from flaps / 270 (servo max) * 180 (library function mapping)
 
 const float ATS_IN = 0.0f;
 const float ATS_OUT = 1.0f;
@@ -566,7 +564,7 @@ void setATSPosition(float percent_rot) {
     #if SKIP_ATS
         return;
     #endif
-    float pos = (ATS_MAX - ATS_MIN) * (1.0f - percent_rot) + ATS_MIN;
+    float pos = ATS_MIN - (ATS_MIN - ATS_MAX) * (1.0f - percent_rot);
     m_atsServo.write(int(pos));
     // if (DEBUG) {Serial.println("ATS position set to " + String(pos));}
     Serial.println("ATS position set to " + String(percent_rot)); // for debugging
