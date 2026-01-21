@@ -5,6 +5,7 @@ Carnegie Schmellon Rocketry Club: Precision INstrumented Experimental Aerial Pro
 Made by the 2026 Avionics team :D (adapting on code from the 2025 Avionics team)
 */
 //hi Sophia
+// :P
 // ***************** LIBRARIES *****************
 #include <Servo.h>
 #include <SD.h>
