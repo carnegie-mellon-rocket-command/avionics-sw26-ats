@@ -1,5 +1,5 @@
 /*
-Carnegie Schmellon Rocketry Club: Precision Instrumented Experimental Aerial Propulsion Payload 
+Carnegie Schmellon Rocketry Club: Precision INstrumented Experimental Aerial Propulsion Payload 
                                   for Low-altitude Exploration ("PINEAPPLE") data logger            
 
 Made by the 2026 Avionics team :D (adapting on code from the 2025 Avionics team)
