@@ -5,6 +5,7 @@ Carnegie Schmellon Rocketry Club: Precision INstrumented Experimental Aerial Pro
 Made by the 2026 Avionics team :D (adapting on code from the 2025 Avionics team)
 */
 //hi Sophia
+// :P
 // ***************** LIBRARIES *****************
 #include <Servo.h>
 #include <SD.h>
@@ -70,10 +71,22 @@ using namespace BLA;
 #define m_p 0.1
 #define m_s 0.1
 #define m_a 0.8
-
+//Engine/Flight Constants (in ms) - take from simulation
+#define DEF_motor_burnout_time_min 4000 //prevent ats turn on until time is reached -
+#define DEF_motor_burnout_time_max 5000 //turn on ats when motor burnout is detected or cutoff_time is reached -
+#define DEF_cutoff_apogee_time 6500 //turn off ats when apogee is detected or cutoff_time is reached -
+#define DEF_cutoff_landing_time 300000 //mark as landed when detected or cutoff_time is reached
 // ***************** GLOBALS *****************
 #define SKIP_ATS false // Whether the rocket is NOT running ATS, so don't try to mount servos, etc.
 #define ENABLE_ASSERTS true
+
+
+// ************** DEBUGGING CHECK *************
+#define DEBUG_C
+
+// FLIGHT PARAMETERS
+// Whether to print debugging messages to the serial monitor (even if SIMULATE is off)
+const bool DEBUG = false;
 
 // ***************** FLIGHT PARAMETERS *****************
 const bool DEBUG = false; // Whether to print debugging messages to the serial monitor (even if SIMULATE is off)
@@ -92,7 +105,7 @@ const float VELOCITY_THRESHOLD = 0.1f;     // Velocity threshold for landing det
 const int ATS_PIN = 6;
 const int LED_PIN = LED_BUILTIN;
 #if SUBSCALE
-    const int altimeter_chip_select = 1;  // BMP
+    const int altimeter_chip_select = 10;     // BMP
 #else
     const int altimeter_chip_select = 10; // BMP
 #endif
@@ -105,18 +118,10 @@ const int ATS_MAX = 13; // 254 constraint from flaps / 270 (servo max) * 180 (li
 const float ATS_IN = 0.0f;
 const float ATS_OUT = 1.0f;
 
-// ***************** SD CARD PARAMETERS *****************
-#if SUBSCALE
-  const int chip_select = 0;
-#else
-  const int chip_select = BUILTIN_SDCARD;
-#endif
+// SD CARD PARAMETERS
+const int chip_select = BUILTIN_SDCARD;
 bool sd_active = false;
-#if SUBSCALE
-    String file_name = "subscl.txt"; // ⚠⚠⚠ FILE NAME MUST BE 8 CHARACTERS OR LESS OR ARDUINO CANNOT WRITE IT (WHY?!?!) ⚠⚠⚠
-#else
-    String file_name = "final.txt";
-#endif
+const char* file_name = String("default.txt").c_str();
 
 // ***************** SENSOR OBJECTS *****************
 Adafruit_BMP3XX m_bmp;   // Altimeter
@@ -164,6 +169,9 @@ void setup() {
         Serial.println("SD card setup failed. Aborting.");
         LEDError();
     }
+
+    // Determine File to write to
+    DetermineWriteFile();
 
     // Initialize sensors
     if (!setupSensors()) {
@@ -217,8 +225,8 @@ void loop() {
         // Detect launch based on acceleration threshold
         if (gAccelFiltered > ACCEL_THRESHOLD && !gLaunched) {
             // Write CSV header to the file
-            writeData("***************** START OF DATA ***************** TIME SINCE BOOT: " + String(millis()) + " ***************** TICK SPEED: " + String(LOOP_TARGET_MS) + "ms\n");
-            writeData("time, pressure (hPa), altitude_raw (ft), acceleration_raw_x (ft/s^2), acceleration_raw_y, acceleration_raw_z, gyro_x (radians/s), gyro_y, gyro_z, gAltFiltered (ft), gVelocityFiltered (ft/s), gAccelFiltered (ft/s^2), temperature (from IMU, degrees C), gATSPosition (servo degrees), gAltPredicted (ft)\n");
+            WriteData("***************** START OF DATA ***************** TIME SINCE READY: " + String(millis() - gStartTime) + " ***************** TICK SPEED: " + String(LOOP_TARGET_MS) + "ms\n");
+            WriteData("time, pressure (hPa), altitude_raw (ft), acceleration_raw_x (ft/s^2), acceleration_raw_y, acceleration_raw_z, gyro_x (radians/s), gyro_y, gyro_z, gAltFiltered (ft), gVelocityFiltered (ft/s), gAccelFiltered (ft/s^2), temperature (from IMU; degrees C), gAtsPosition (servo degrees), gAltPredicted (ft)\n");
 
             if (DEBUG) {Serial.println("Rocket has launched!");}
             gLaunched = true;
@@ -318,8 +326,13 @@ void writeData(String text) {
         return;
     #endif
 
+    #ifdef DEBUG_C
+        Serial.print("Writing to File: ");
+        Serial.println(file_name);
+    #endif
+
     if (sd_active) {
-        File data_file = SD.open("subscl_1.txt", FILE_WRITE);
+        File data_file = SD.open(file_name, FILE_WRITE); //appends to EOF, clear manually before lanuch
         if (data_file) {
             if (DEBUG) {Serial.println("Writing to SD card!");}
             data_file.print(text);
@@ -328,7 +341,9 @@ void writeData(String text) {
         else {
             // Could leave this out so the program tries to keep logging data even if it fails once
             // sd_active = false;
-            Serial.println("Error opening subscl_1.txt");
+            #ifdef DEBUG_C
+                Serial.println("Error opening subscl_1.txt"); 
+            #endif
         }
     }
     else {
@@ -337,6 +352,45 @@ void writeData(String text) {
     }
 }
 
+/** @brief Determines the file to write to when the ATS is started. */
+void DetermineWriteFile(){
+    #ifdef DEBUG_C
+        Serial.println("Verifing files");
+    #endif
+    if (sd_active) {
+        File dir = SD.open("/");
+        int latestLaunch = 0;
+        while (true) {
+            File entry =  dir.openNextFile();
+            if (!entry) {
+                #ifdef DEBUG_C
+                    Serial.println("Exiting");
+                #endif
+                break;
+            }
+            String fileEntryName = String(entry.name());
+            if (fileEntryName.substring(0,7).equals("launch_")){
+                int curLaunchFileNumber = String(fileEntryName).substring(7).toInt();
+                if (curLaunchFileNumber > latestLaunch) latestLaunch = curLaunchFileNumber;
+            }
+            entry.close();
+        }
+        file_name = String("launch_").concat(String(latestLaunch+1)).concat(String(".txt")).c_str();
+    } else {
+        #ifdef DEBUG_C
+            Serial.println("No SD card attached, continuing without logging.");
+        #endif
+    }
+}
+
+
+// ***************** Sensor Setup *****************
+/**  @brief Initialize all sensors */
+bool SetupSensors() {
+  #if SIMULATE
+    Serial.println("(simulation) Sensors connected successfully!");
+    return true;
+  #endif
 
 // ***************** SENSOR SETUP METHODS *****************
 /** @brief Initialize all sensors */
@@ -421,29 +475,21 @@ String getMeasurements() {
 
     // Print measurements
     String movementData = String(m_bmp.pressure/100.0) + "," + 
-                          String(m_bmp.readAltitude(SEA_LEVEL_PRESSURE_HPA)) + "," + 
-                          String(accel.acceleration.x*METERS_TO_FEET) + "," + 
-                          String(accel.acceleration.y*METERS_TO_FEET) + "," + 
-                          String(accel.acceleration.z*METERS_TO_FEET) + "," + 
-                          String(gyro.gyro.x) + "," + 
-                          String(gyro.gyro.y) + "," + 
-                          String(gyro.gyro.z) + "," + 
-                          String(gAltFiltered) + "," + 
-                          String(gVelocityFiltered) + "," + 
-                          String(gAccelFiltered);
-    String timeData = String(millis() - gStartTime);
-    String sensorData = String(readThermometer());
-    if (DEBUG) {Serial.println(timeData + "," + movementData + "," + sensorData + "," + String(gATSPosition));}
-    return timeData + "," + movementData + "," + sensorData + "," + String(gATSPosition) + "," + String(gPredictedAltitude);
-}
+                           String(m_bmp.readAltitude(SEA_LEVEL_PRESSURE_HPA)) + "," + 
+                           String(accel.acceleration.x*METERS_TO_FEET) + "," + 
+                           String(accel.acceleration.y*METERS_TO_FEET) + "," + 
+                           String(accel.acceleration.z*METERS_TO_FEET) + "," + 
+                           String(gyro.gyro.x) + "," + 
+                           String(gyro.gyro.y) + "," + 
+                           String(gyro.gyro.z) + "," + 
+                           String(gAltFiltered) + "," + 
+                           String(gVelocityFiltered) + "," + 
+                           String(gAccelFiltered);
+    String timeData = String(millis() - gLaunchTime); //now records time since launch instead of time since start
+    String sensorData = String(ReadThermometer());
 
-/** @brief Detect if rocket has landed 
-  * If the rocket has been reasonably still for 5 seconds, it is considered landed */
-bool detectLanding() {
-    if (gLaunchTime != 0 && millis() - gLaunchTime > 300000) { 
-        return true;
-    } 
-    return false;
+    // if (DEBUG) {Serial.println(timeData + "," + movementData + "," + sensorData + "," + String(gAtsPosition));}
+    return timeData + "," + movementData + "," + sensorData + "," + String(gAtsPosition) + "," + String(gPredictedAltitude);
 }
 
 /** @brief Filter raw data and updates globals
@@ -468,17 +514,29 @@ void filterData(float alt, float acc) {
     gVelocityFiltered = KalmanFilter.x(1);
     gAccelFiltered = KalmanFilter.x(2);
     // Serial << alt << "," << acc <<"," << gAltFiltered << "," << gVelocityFiltered << "," << gAccelFiltered << "\n";
-    Serial << "Current accel: " << gAccelFiltered << "\n";
+    //Serial << "Current accel: " << gAccelFiltered << "\n";
     // Serial.println("Filtered Altitude: " + String(gAltFiltered) + " Filtered Velocity: " + String(gVelocityFiltered) + " Filtered Acceleration: " + String(gAccelFiltered));
 }
 
-/** @brief  Read altitude from altimeter
-  * IMPORTANT: update altimeter with `performreading()` beforehand
-  * @returns raw altitude (ft) */
-float readAltimeter() {
-    float altimeter_data = m_bmp.readAltitude(SEA_LEVEL_PRESSURE_HPA) * METERS_TO_FEET;
-    if (DEBUG) {Serial.println("Altimeter: " + String(altimeter_data));}
-    return altimeter_data;
+/** @brief Detect if rocket has landed 
+ * if the rocket has been reasonably still for 5 seconds, it is considered landed
+*/
+bool DetectLanding() {
+    if (gLaunchTime != 0 && millis() - gLaunchTime > DEF_cutoff_landing_time) { return true; } 
+    //return false;
+
+    //check landed
+    static unsigned int landed_cd = 5000;
+    static unsigned long last_check = millis();
+    if (abs(gAccelFiltered) < 1 && abs(gVelocityFiltered)< 1){
+        landed_cd -= (int)(millis() - last_check);
+    }else if (landed_cd > 0){
+        landed_cd = 5000;
+    }
+    if(landed_cd <= 0){
+        return true;
+    }
+    return false;
 }
 
 /** @brief Read acceleration from IMU 
@@ -597,19 +655,18 @@ void adjustATS() {
     // ATS window
     if (millis() - gLaunchTime > 4500) {
         if (millis() - gLaunchTime < 6000) {
-            // Adjust ATS based on position
-            setATSPosition(ATS_IN);
-            delay(500);
-            setATSPosition(ATS_OUT); // Initial position
-            delay(500);
-            setATSPosition(ATS_IN);  // Reset position
-            delay(500);
-            Serial.println("Cycling ATS position");
-        }
-        else {
-            // Adjust ATS based on position
-            setATSPosition(gATSPosition);
-            Serial.println("ATS position: " + String(gATSPosition));
+          // Adjust ATS based on position
+          setATSPosition(ATS_IN);
+          delay(500);
+          setATSPosition(ATS_OUT);  // Initial position
+          delay(500);
+          setATSPosition(ATS_IN);  // Reset position
+          delay(500);
+          Serial.println("Cycling ATS position");
+        } else {
+        // Adjust ATS based on position
+          setATSPosition(gAtsPosition);
+          Serial.println("ATS position: " + String(gAtsPosition));
         }
     }
 }
