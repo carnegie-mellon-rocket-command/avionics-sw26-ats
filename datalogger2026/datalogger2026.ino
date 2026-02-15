@@ -17,7 +17,7 @@ Made by the 2026 Avionics team :D (adapting on code from the 2025 Avionics team)
 // ***************** META *****************
 // ⚠⚠⚠ VERY IMPORTANT ⚠⚠⚠
 // true sets subscale altitude target, false sets fullscale altitude target
-#define SUBSCALE true
+#define SUBSCALE false
 
 // ⚠⚠⚠ IMPORTANT ⚠⚠⚠ 
 // true will NOT actually gather data, only simulate it for testing purposes  
@@ -43,7 +43,7 @@ Made by the 2026 Avionics team :D (adapting on code from the 2025 Avionics team)
 using namespace BLA;
 
 // ***************** UNITS (in IPS) *****************
-#define SEA_LEVEL_PRESSURE_HPA 1018.0f
+#define SEA_LEVEL_PRESSURE_HPA 1013.25f
 #define METERS_TO_FEET 3.28084f
 #define ATMOSPHERE_FLUID_DENSITY 0.076474f // lbs/ft^3
 #define GRAVITY 32.174f // ft/s^2
@@ -76,7 +76,7 @@ using namespace BLA;
 #define ENABLE_ASSERTS true
 
 // ***************** FLIGHT PARAMETERS *****************
-const bool DEBUG = false; // Whether to print debugging messages to the serial monitor (even if SIMULATE is off)
+const bool DEBUG = true; // Whether to print debugging messages to the serial monitor (even if SIMULATE is off)
 const int LOOP_TARGET_MS = 30; // How frequently data should be collected (in milliseconds)
 
 // Target altitude in feet
@@ -420,21 +420,21 @@ String getMeasurements() {
     filterData(readAltimeter(), readIMU()); 
 
     // Print measurements
-    String movementData = String(m_bmp.pressure/100.0) + "," + 
-                          String(m_bmp.readAltitude(SEA_LEVEL_PRESSURE_HPA)) + "," + 
-                          String(accel.acceleration.x*METERS_TO_FEET) + "," + 
-                          String(accel.acceleration.y*METERS_TO_FEET) + "," + 
-                          String(accel.acceleration.z*METERS_TO_FEET) + "," + 
-                          String(gyro.gyro.x) + "," + 
-                          String(gyro.gyro.y) + "," + 
-                          String(gyro.gyro.z) + "," + 
-                          String(gAltFiltered) + "," + 
-                          String(gVelocityFiltered) + "," + 
+    String movementData = String(m_bmp.pressure/100.0) + ", " + 
+                          String(m_bmp.readAltitude(SEA_LEVEL_PRESSURE_HPA)) + ", " + 
+                          String(accel.acceleration.x*METERS_TO_FEET) + ", " + 
+                          String(accel.acceleration.y*METERS_TO_FEET) + ", " + 
+                          String(accel.acceleration.z*METERS_TO_FEET) + ", " + 
+                          String(gyro.gyro.x) + ", " + 
+                          String(gyro.gyro.y) + ", " + 
+                          String(gyro.gyro.z) + ", " + 
+                          String(gAltFiltered) + ", " + 
+                          String(gVelocityFiltered) + ", " + 
                           String(gAccelFiltered);
     String timeData = String(millis() - gStartTime);
     String sensorData = String(readThermometer());
-    if (DEBUG) {Serial.println(timeData + "," + movementData + "," + sensorData + "," + String(gATSPosition));}
-    return timeData + "," + movementData + "," + sensorData + "," + String(gATSPosition) + "," + String(gPredictedAltitude);
+    if (DEBUG) {Serial.println(timeData + ", " + movementData + ", " + sensorData + ", " + String(gATSPosition));}
+    return timeData + "," + movementData + ", " + sensorData + ", " + String(gATSPosition) + ", " + String(gPredictedAltitude);
 }
 
 /** @brief Detect if rocket has landed 
