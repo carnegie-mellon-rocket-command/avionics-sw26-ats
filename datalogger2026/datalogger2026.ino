@@ -18,7 +18,7 @@ Made by the 2026 Avionics team :D (adapting on code from the 2025 Avionics team)
 // ***************** META *****************
 // ⚠⚠⚠ VERY IMPORTANT ⚠⚠⚠
 // true sets subscale altitude target, false sets fullscale altitude target
-#define SUBSCALE true
+//#define SUBSCALE false
 
 // ⚠⚠⚠ IMPORTANT ⚠⚠⚠ 
 // true will NOT actually gather data, only simulate it for testing purposes  
@@ -71,10 +71,10 @@ using namespace BLA;
 #define m_p 0.1
 #define m_s 0.1
 #define m_a 0.8
-//Engine/Flight Constants (in ms) - take from simulation
+//Engine/Flight Constants (in ms) - take from simulation rocketpy or openrocket
 #define DEF_motor_burnout_time_min 4000 //prevent ats turn on until time is reached -
 #define DEF_motor_burnout_time_max 5000 //turn on ats when motor burnout is detected or cutoff_time is reached -
-#define DEF_cutoff_apogee_time 6500 //turn off ats when apogee is detected or cutoff_time is reached -
+#define DEF_cutoff_apogee_time 65000 //turn off ats when apogee is detected or cutoff_time is reached -
 #define DEF_cutoff_landing_time 300000 //mark as landed when detected or cutoff_time is reached
 // ***************** GLOBALS *****************
 #define SKIP_ATS false // Whether the rocket is NOT running ATS, so don't try to mount servos, etc.
@@ -82,11 +82,13 @@ using namespace BLA;
 
 
 // ************** DEBUGGING CHECK *************
+//#define DEBUG false
 #define DEBUG_C
+
 
 // FLIGHT PARAMETERS
 // Whether to print debugging messages to the serial monitor (even if SIMULATE is off)
-const bool DEBUG = false;
+const bool DEBUG = true;
 
 // ***************** FLIGHT PARAMETERS *****************
 const bool DEBUG = false; // Whether to print debugging messages to the serial monitor (even if SIMULATE is off)
@@ -104,11 +106,8 @@ const float VELOCITY_THRESHOLD = 0.1f;     // Velocity threshold for landing det
 // ***************** PIN DEFINITIONS *****************
 const int ATS_PIN = 6;
 const int LED_PIN = LED_BUILTIN;
-#if SUBSCALE
-    const int altimeter_chip_select = 10;     // BMP
-#else
-    const int altimeter_chip_select = 10; // BMP
-#endif
+const int altimeter_chip_select = 10;     // BMP
+
 
 // ***************** ATS SERVO PARAMETERS *****************
 Servo m_atsServo;
@@ -121,7 +120,7 @@ const float ATS_OUT = 1.0f;
 // SD CARD PARAMETERS
 const int chip_select = BUILTIN_SDCARD;
 bool sd_active = false;
-const char* file_name = String("default.txt").c_str();
+String file_name = String("default.txt");
 
 // ***************** SENSOR OBJECTS *****************
 Adafruit_BMP3XX m_bmp;   // Altimeter
@@ -141,7 +140,6 @@ float variance_altitude, variance_acceleration = 0.1f; // Might want to change t
 float previous_velocity_filtered = 0.0f; // We don't necessarily need this variable at this point, but it will be used when more advanced filtering techniques are implemented
 bool gLaunched, gLanded; // Remembers if the rocket has launched and landed
 unsigned long gLaunchTime;
-unsigned long land_time = 0;
 float absolute_alt_target = ALT_TARGET;
 
 // Kalman filter stuff
@@ -209,6 +207,8 @@ void setup() {
     Serial.println("Arduino is ready!");
     LEDSuccess();
     gStartTime = millis();
+    gLaunchTime = gStartTime;
+
 }
 
 // Repeats indefinitely after setup() is finished
@@ -331,8 +331,10 @@ void writeData(String text) {
         Serial.println(file_name);
     #endif
 
+
+
     if (sd_active) {
-        File data_file = SD.open(file_name, FILE_WRITE); //appends to EOF, clear manually before lanuch
+        File data_file = SD.open(file_name.c_str(), FILE_WRITE); //appends to EOF, clear manually before lanuch
         if (data_file) {
             if (DEBUG) {Serial.println("Writing to SD card!");}
             data_file.print(text);
@@ -375,7 +377,11 @@ void DetermineWriteFile(){
             }
             entry.close();
         }
-        file_name = String("launch_").concat(String(latestLaunch+1)).concat(String(".txt")).c_str();
+
+        file_name = String("launch_").concat(String(latestLaunch+1)).concat(String(".txt"));
+        #ifdef DEBUG_C
+            Serial.println("Writing to file: " +String(file_name));
+        #endif
     } else {
         #ifdef DEBUG_C
             Serial.println("No SD card attached, continuing without logging.");
@@ -485,7 +491,7 @@ String getMeasurements() {
                            String(gAltFiltered) + "," + 
                            String(gVelocityFiltered) + "," + 
                            String(gAccelFiltered);
-    String timeData = String(millis() - gLaunchTime); //now records time since launch instead of time since start
+    String timeData = String(millis() - gStartTime);
     String sensorData = String(ReadThermometer());
 
     // if (DEBUG) {Serial.println(timeData + "," + movementData + "," + sensorData + "," + String(gAtsPosition));}
@@ -528,11 +534,13 @@ bool DetectLanding() {
     //check landed
     static unsigned int landed_cd = 5000;
     static unsigned long last_check = millis();
-    if (abs(gAccelFiltered) < 1 && abs(gVelocityFiltered)< 1){
+
+    if ((abs(gAccelFiltered)-32) < 2 && abs(gVelocityFiltered)< 2){
         landed_cd -= (int)(millis() - last_check);
     }else if (landed_cd > 0){
         landed_cd = 5000;
     }
+
     if(landed_cd <= 0){
         return true;
     }
