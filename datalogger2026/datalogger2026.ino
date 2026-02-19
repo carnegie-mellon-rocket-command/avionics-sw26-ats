@@ -18,7 +18,7 @@ Made by the 2026 Avionics team :D (adapting on code from the 2025 Avionics team)
 // ***************** META *****************
 // ⚠⚠⚠ VERY IMPORTANT ⚠⚠⚠
 // true sets subscale altitude target, false sets fullscale altitude target
-//#define SUBSCALE false
+#define SUBSCALE false
 
 // ⚠⚠⚠ IMPORTANT ⚠⚠⚠ 
 // true will NOT actually gather data, only simulate it for testing purposes  
