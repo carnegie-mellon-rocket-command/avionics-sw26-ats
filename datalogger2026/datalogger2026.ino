@@ -44,7 +44,7 @@ Made by the 2026 Avionics team :D (adapting on code from the 2025 Avionics team)
 using namespace BLA;
 
 // ***************** UNITS (in IPS) *****************
-#define SEA_LEVEL_PRESSURE_HPA 1018.0f
+#define SEA_LEVEL_PRESSURE_HPA 1013.25f
 #define METERS_TO_FEET 3.28084f
 #define ATMOSPHERE_FLUID_DENSITY 0.076474f // lbs/ft^3
 #define GRAVITY 32.174f // ft/s^2
@@ -84,11 +84,6 @@ using namespace BLA;
 // ************** DEBUGGING CHECK *************
 //#define DEBUG false
 #define DEBUG_C
-
-
-// FLIGHT PARAMETERS
-// Whether to print debugging messages to the serial monitor (even if SIMULATE is off)
-const bool DEBUG = true;
 
 // ***************** FLIGHT PARAMETERS *****************
 const bool DEBUG = false; // Whether to print debugging messages to the serial monitor (even if SIMULATE is off)
@@ -225,8 +220,8 @@ void loop() {
         // Detect launch based on acceleration threshold
         if (gAccelFiltered > ACCEL_THRESHOLD && !gLaunched) {
             // Write CSV header to the file
-            WriteData("***************** START OF DATA ***************** TIME SINCE READY: " + String(millis() - gStartTime) + " ***************** TICK SPEED: " + String(LOOP_TARGET_MS) + "ms\n");
-            WriteData("time, pressure (hPa), altitude_raw (ft), acceleration_raw_x (ft/s^2), acceleration_raw_y, acceleration_raw_z, gyro_x (radians/s), gyro_y, gyro_z, gAltFiltered (ft), gVelocityFiltered (ft/s), gAccelFiltered (ft/s^2), temperature (from IMU; degrees C), gAtsPosition (servo degrees), gAltPredicted (ft)\n");
+            writeData("***************** START OF DATA ***************** TIME SINCE READY: " + String(millis() - gStartTime) + " ***************** TICK SPEED: " + String(LOOP_TARGET_MS) + "ms\n");
+            writeData("time, pressure (hPa), altitude_raw (ft), acceleration_raw_x (ft/s^2), acceleration_raw_y, acceleration_raw_z, gyro_x (radians/s), gyro_y, gyro_z, gAltFiltered (ft), gVelocityFiltered (ft/s), gAccelFiltered (ft/s^2), temperature (from IMU; degrees C), gATSPosition (servo degrees), gAltPredicted (ft)\n");
 
             if (DEBUG) {Serial.println("Rocket has launched!");}
             gLaunched = true;
@@ -389,15 +384,6 @@ void DetermineWriteFile(){
     }
 }
 
-
-// ***************** Sensor Setup *****************
-/**  @brief Initialize all sensors */
-bool SetupSensors() {
-  #if SIMULATE
-    Serial.println("(simulation) Sensors connected successfully!");
-    return true;
-  #endif
-
 // ***************** SENSOR SETUP METHODS *****************
 /** @brief Initialize all sensors */
 bool setupSensors() {
@@ -492,10 +478,10 @@ String getMeasurements() {
                            String(gVelocityFiltered) + "," + 
                            String(gAccelFiltered);
     String timeData = String(millis() - gStartTime);
-    String sensorData = String(ReadThermometer());
+    String sensorData = String(readThermometer());
 
-    // if (DEBUG) {Serial.println(timeData + "," + movementData + "," + sensorData + "," + String(gAtsPosition));}
-    return timeData + "," + movementData + "," + sensorData + "," + String(gAtsPosition) + "," + String(gPredictedAltitude);
+    // if (DEBUG) {Serial.println(timeData + "," + movementData + "," + sensorData + "," + String(gATSPosition));}
+    return timeData + "," + movementData + "," + sensorData + "," + String(gATSPosition) + "," + String(gPredictedAltitude);
 }
 
 /** @brief Filter raw data and updates globals
@@ -527,7 +513,7 @@ void filterData(float alt, float acc) {
 /** @brief Detect if rocket has landed 
  * if the rocket has been reasonably still for 5 seconds, it is considered landed
 */
-bool DetectLanding() {
+bool detectLanding() {
     if (gLaunchTime != 0 && millis() - gLaunchTime > DEF_cutoff_landing_time) { return true; } 
     //return false;
 
@@ -545,6 +531,16 @@ bool DetectLanding() {
         return true;
     }
     return false;
+}
+
+/**  @brief  Read altitude from altimeter
+* IMPORTANT: update altimeter with `performreading()` beforehand
+* @returns raw altitude (meters)
+*/
+float readAltimeter() {
+    float altimeter_data = m_bmp.readAltitude(SEA_LEVEL_PRESSURE_HPA) * METERS_TO_FEET;
+    if (DEBUG) {Serial.println("Altimeter: " + String(altimeter_data));}
+    return altimeter_data;
 }
 
 /** @brief Read acceleration from IMU 
@@ -673,8 +669,8 @@ void adjustATS() {
           Serial.println("Cycling ATS position");
         } else {
         // Adjust ATS based on position
-          setATSPosition(gAtsPosition);
-          Serial.println("ATS position: " + String(gAtsPosition));
+          setATSPosition(gATSPosition);
+          Serial.println("ATS position: " + String(gATSPosition));
         }
     }
 }
