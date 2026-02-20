@@ -483,10 +483,6 @@ String getMeasurements() {
     return timeData + "," + movementData + ", " + sensorData + ", " + String(gATSPosition) + ", " + String(gPredictedAltitude);
 }
 
-    // if (DEBUG) {Serial.println(timeData + "," + movementData + "," + sensorData + "," + String(gATSPosition));}
-    return timeData + "," + movementData + "," + sensorData + "," + String(gATSPosition) + "," + String(gPredictedAltitude);
-}
-
 /** @brief Filter raw data and updates globals
   * still need to implement (TO-DO)*/ 
 void filterData(float alt, float acc) {
