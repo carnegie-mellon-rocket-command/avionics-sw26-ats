@@ -86,7 +86,7 @@ using namespace BLA;
 #define DEBUG_C
 
 // ***************** FLIGHT PARAMETERS *****************
-const bool DEBUG = false; // Whether to print debugging messages to the serial monitor (even if SIMULATE is off)
+const bool DEBUG = true; // Whether to print debugging messages to the serial monitor (even if SIMULATE is off)
 const int LOOP_TARGET_MS = 30; // How frequently data should be collected (in milliseconds)
 
 // Target altitude in feet
@@ -466,19 +466,22 @@ String getMeasurements() {
     filterData(readAltimeter(), readIMU()); 
 
     // Print measurements
-    String movementData = String(m_bmp.pressure/100.0) + "," + 
-                           String(m_bmp.readAltitude(SEA_LEVEL_PRESSURE_HPA)) + "," + 
-                           String(accel.acceleration.x*METERS_TO_FEET) + "," + 
-                           String(accel.acceleration.y*METERS_TO_FEET) + "," + 
-                           String(accel.acceleration.z*METERS_TO_FEET) + "," + 
-                           String(gyro.gyro.x) + "," + 
-                           String(gyro.gyro.y) + "," + 
-                           String(gyro.gyro.z) + "," + 
-                           String(gAltFiltered) + "," + 
-                           String(gVelocityFiltered) + "," + 
-                           String(gAccelFiltered);
+    String movementData = String(m_bmp.pressure/100.0) + ", " + 
+                          String(m_bmp.readAltitude(SEA_LEVEL_PRESSURE_HPA)) + ", " + 
+                          String(accel.acceleration.x*METERS_TO_FEET) + ", " + 
+                          String(accel.acceleration.y*METERS_TO_FEET) + ", " + 
+                          String(accel.acceleration.z*METERS_TO_FEET) + ", " + 
+                          String(gyro.gyro.x) + ", " + 
+                          String(gyro.gyro.y) + ", " + 
+                          String(gyro.gyro.z) + ", " + 
+                          String(gAltFiltered) + ", " + 
+                          String(gVelocityFiltered) + ", " + 
+                          String(gAccelFiltered);
     String timeData = String(millis() - gStartTime);
     String sensorData = String(readThermometer());
+    if (DEBUG) {Serial.println(timeData + ", " + movementData + ", " + sensorData + ", " + String(gATSPosition));}
+    return timeData + "," + movementData + ", " + sensorData + ", " + String(gATSPosition) + ", " + String(gPredictedAltitude);
+}
 
     // if (DEBUG) {Serial.println(timeData + "," + movementData + "," + sensorData + "," + String(gATSPosition));}
     return timeData + "," + movementData + "," + sensorData + "," + String(gATSPosition) + "," + String(gPredictedAltitude);
