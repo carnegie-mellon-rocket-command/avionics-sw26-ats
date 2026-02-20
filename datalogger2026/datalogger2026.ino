@@ -44,7 +44,7 @@ Made by the 2026 Avionics team :D (adapting on code from the 2025 Avionics team)
 using namespace BLA;
 
 // ***************** UNITS (in IPS) *****************
-#define SEA_LEVEL_PRESSURE_HPA 1013.25f
+#define SEA_LEVEL_PRESSURE_HPA 1003.7f
 #define METERS_TO_FEET 3.28084f
 #define ATMOSPHERE_FLUID_DENSITY 0.076474f // lbs/ft^3
 #define GRAVITY 32.174f // ft/s^2
@@ -463,7 +463,7 @@ String getMeasurements() {
     m_sox.getEvent(&accel, &gyro, &temp); // Update IMU
     
     // Pass raw data to be filtered
-    filterData(readAltimeter(), readIMU()); 
+    filterData(readAltimeter(), readIMU()-GRAVITY); 
 
     // Print measurements
     String movementData = String(m_bmp.pressure/100.0) + ", " + 
@@ -505,8 +505,8 @@ void filterData(float alt, float acc) {
     gVelocityFiltered = KalmanFilter.x(1);
     gAccelFiltered = KalmanFilter.x(2);
     // Serial << alt << "," << acc <<"," << gAltFiltered << "," << gVelocityFiltered << "," << gAccelFiltered << "\n";
-    //Serial << "Current accel: " << gAccelFiltered << "\n";
-    // Serial.println("Filtered Altitude: " + String(gAltFiltered) + " Filtered Velocity: " + String(gVelocityFiltered) + " Filtered Acceleration: " + String(gAccelFiltered));
+    // Serial << "Current accel: " << gAccelFiltered << "\n";
+    Serial.println("Filtered Altitude: " + String(gAltFiltered) + " Filtered Velocity: " + String(gVelocityFiltered) + " Filtered Acceleration: " + String(gAccelFiltered));
 }
 
 /** @brief Detect if rocket has landed 
@@ -517,13 +517,13 @@ bool detectLanding() {
     //return false;
 
     //check landed
-    static unsigned int landed_cd = 5000;
+    static unsigned int landed_cd = 10000;
     static unsigned long last_check = millis();
 
-    if ((abs(gAccelFiltered)-32) < 2 && abs(gVelocityFiltered)< 2){
+    if (abs(gVelocityFiltered)< 2){
         landed_cd -= (int)(millis() - last_check);
-    }else if (landed_cd > 0){
-        landed_cd = 5000;
+    } else if (landed_cd > 0){
+        landed_cd = 10000;
     }
 
     if(landed_cd <= 0){
